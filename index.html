@@ -370,7 +370,8 @@ const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X',
                'XXI','XXII','XXIII','XXIV','XXV','XXVI','XXVII','XXVIII','XXIX','XXX',
                'XXXI','XXXII','XXXIII','XXXIV','XXXV','XXXVI','XXXVII','XXXVIII','XXXIX','XL',
                'XLI','XLII','XLIII','XLIV','XLV','XLVI','XLVII','XLVIII','XLIX','L',
-               'LI','LII','LIII','LIV','LV','LVI','LVII','LVIII','LIX','LX'];
+               'LI','LII','LIII','LIV','LV','LVI','LVII','LVIII','LIX','LX',
+               'LXI','LXII','LXIII','LXIV','LXV','LXVI','LXVII','LXVIII','LXIX','LXX'];
 
 const LEVELS = [
   { name: 'first stir', ripples: 3,
@@ -682,7 +683,17 @@ const LEVELS = [
     goals: [[0.58, 0.58, 'gold'], [0.42, 0.58, 'rose'], [0.58, 0.42, 'violet'], [0.42, 0.42, 'teal']],
     whirls: [[0.5, 0.5, 0.1, -1]],
     rocks: [[0.25, 0.25, 0.05], [0.75, 0.25, 0.05], [0.25, 0.75, 0.05], [0.75, 0.75, 0.05]],
-    flows: [[0, 0.05, 1, 0.1, 90, 0], [0, 0.85, 1, 0.1, -90, 0]] }
+    flows: [[0, 0.05, 1, 0.1, 90, 0], [0, 0.85, 1, 0.1, -90, 0]] },
+
+  { name: 'the great whirlpool', ripples: 6,
+    hint: 'the whole pond turns, set it on the rim and let it spiral home',
+    orbs: [[0.06, 0.5]], goals: [[0.62, 0.5]],
+    whirls: [[0.5, 0.5, 0.46, 1]] },
+
+  { name: 'the great current', ripples: 6,
+    hint: 'one wide current pulls everything along, steer across it',
+    orbs: [[0.06, 0.2]], goals: [[0.92, 0.8]],
+    flows: [[0, 0, 1, 1, 140, 0]] }
 ];
 
 /* ---------- game state ---------- */
