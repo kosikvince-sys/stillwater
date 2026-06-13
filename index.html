@@ -368,7 +368,9 @@ const TINTS = {
 const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X',
                'XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX',
                'XXI','XXII','XXIII','XXIV','XXV','XXVI','XXVII','XXVIII','XXIX','XXX',
-               'XXXI','XXXII','XXXIII','XXXIV','XXXV','XXXVI','XXXVII','XXXVIII','XXXIX','XL'];
+               'XXXI','XXXII','XXXIII','XXXIV','XXXV','XXXVI','XXXVII','XXXVIII','XXXIX','XL',
+               'XLI','XLII','XLIII','XLIV','XLV','XLVI','XLVII','XLVIII','XLIX','L',
+               'LI','LII','LIII','LIV','LV','LVI','LVII','LVIII','LIX','LX'];
 
 const LEVELS = [
   { name: 'first stir', ripples: 3,
@@ -567,7 +569,120 @@ const LEVELS = [
     goals: [[0.14, 0.14, 'violet'], [0.86, 0.14, 'teal'], [0.14, 0.86, 'gold'], [0.86, 0.86, 'rose']],
     rocks: [[0.24, 0.24, 0.05], [0.76, 0.24, 0.05], [0.24, 0.76, 0.05], [0.76, 0.76, 0.05]],
     whirls: [[0.5, 0.5, 0.11, -1]],
-    flows: [[0, 0.08, 1, 0.12, 100, 0], [0, 0.8, 1, 0.12, -100, 0]] }
+    flows: [[0, 0.08, 1, 0.12, 100, 0], [0, 0.8, 1, 0.12, -100, 0]] },
+
+  // ---- the deep water, levels 41-60, the hardest tier ----
+
+  { name: 'the threshold', ripples: 7,
+    hint: 'the deep water begins, nothing here moves easily',
+    orbs: [[0.12, 0.5]], goals: [[0.88, 0.5]],
+    rocks: [[0.4, 0.32, 0.06], [0.4, 0.68, 0.06], [0.6, 0.5, 0.07],
+            [0.5, 0.16, 0.05], [0.5, 0.84, 0.05]] },
+
+  { name: 'pinwheel', ripples: 8,
+    hint: 'the turning water sorts colours if you feed it gently',
+    orbs: [[0.5, 0.12, 'gold'], [0.88, 0.5, 'rose'], [0.5, 0.88, 'violet'], [0.12, 0.5, 'teal']],
+    goals: [[0.5, 0.33, 'teal'], [0.67, 0.5, 'gold'], [0.5, 0.67, 'rose'], [0.33, 0.5, 'violet']],
+    whirls: [[0.5, 0.5, 0.16, 1]] },
+
+  { name: 'the long current', ripples: 7, hint: '',
+    orbs: [[0.1, 0.5]], goals: [[0.9, 0.5]],
+    flows: [[0, 0.3, 1, 0.4, 90, 0]],
+    rocks: [[0.45, 0.5, 0.06], [0.7, 0.5, 0.06]] },
+
+  { name: 'crosswind sort', ripples: 8, hint: '',
+    orbs: [[0.14, 0.3, 'gold'], [0.14, 0.7, 'rose']],
+    goals: [[0.86, 0.7, 'gold'], [0.86, 0.3, 'rose']],
+    flows: [[0, 0, 1, 0.5, 110, 0], [0, 0.5, 1, 0.5, -110, 0]] },
+
+  { name: 'the gauntlet', ripples: 8, hint: '',
+    orbs: [[0.1, 0.5]], goals: [[0.9, 0.5]],
+    rocks: [[0.3, 0.3, 0.055], [0.3, 0.7, 0.055], [0.5, 0.5, 0.06],
+            [0.62, 0.28, 0.05], [0.62, 0.72, 0.05], [0.42, 0.16, 0.045], [0.42, 0.84, 0.045]],
+    whirls: [[0.82, 0.5, 0.1, 1]] },
+
+  { name: 'deep eddies', ripples: 8, hint: '',
+    orbs: [[0.12, 0.5, 'gold'], [0.88, 0.5, 'rose']],
+    goals: [[0.88, 0.28, 'gold'], [0.12, 0.72, 'rose']],
+    whirls: [[0.38, 0.5, 0.13, 1], [0.62, 0.5, 0.13, -1]] },
+
+  { name: 'the sluice', ripples: 7, hint: '',
+    orbs: [[0.12, 0.5]], goals: [[0.88, 0.5]],
+    rocks: [[0.42, 0.28, 0.08], [0.42, 0.72, 0.08], [0.62, 0.28, 0.08], [0.62, 0.72, 0.08]],
+    flows: [[0.4, 0, 0.22, 1, 0, 120]] },
+
+  { name: 'spiral inward', ripples: 5,
+    hint: 'let the spiral draw it to the centre',
+    orbs: [[0.12, 0.5]], goals: [[0.5, 0.5]],
+    whirls: [[0.5, 0.5, 0.2, 1]] },
+
+  { name: 'against the gyre', ripples: 8, hint: '',
+    orbs: [[0.5, 0.86]], goals: [[0.5, 0.14]],
+    whirls: [[0.5, 0.5, 0.18, -1]], rocks: [[0.5, 0.5, 0.05]] },
+
+  { name: 'the lattice', ripples: 9, hint: '',
+    orbs: [[0.1, 0.3], [0.1, 0.7]], goals: [[0.9, 0.3], [0.9, 0.7]],
+    rocks: [[0.34, 0.25, 0.05], [0.34, 0.5, 0.05], [0.34, 0.75, 0.05],
+            [0.54, 0.375, 0.05], [0.54, 0.625, 0.05],
+            [0.72, 0.25, 0.05], [0.72, 0.5, 0.05], [0.72, 0.75, 0.05]] },
+
+  { name: 'four currents', ripples: 10, hint: '',
+    orbs: [[0.5, 0.2, 'gold'], [0.8, 0.5, 'rose'], [0.5, 0.8, 'violet'], [0.2, 0.5, 'teal']],
+    goals: [[0.5, 0.07, 'gold'], [0.93, 0.5, 'rose'], [0.5, 0.93, 'violet'], [0.07, 0.5, 'teal']],
+    flows: [[0, 0, 0.6, 0.14, 120, 0], [0.86, 0, 0.14, 0.6, 0, 120],
+            [0.4, 0.86, 0.6, 0.14, -120, 0], [0, 0.4, 0.14, 0.6, 0, -120]] },
+
+  { name: "the maelstrom's eye", ripples: 9, hint: '',
+    orbs: [[0.5, 0.16, 'gold'], [0.16, 0.5, 'rose'], [0.84, 0.5, 'violet'], [0.5, 0.84, 'teal']],
+    goals: [[0.13, 0.13, 'gold'], [0.13, 0.87, 'rose'], [0.87, 0.13, 'violet'], [0.87, 0.87, 'teal']],
+    whirls: [[0.5, 0.5, 0.26, 1]] },
+
+  { name: 'tidal lock', ripples: 8, hint: '',
+    orbs: [[0.14, 0.14], [0.86, 0.86]], goals: [[0.86, 0.14], [0.14, 0.86]],
+    flows: [[0, 0.44, 1, 0.12, 140, 0]],
+    rocks: [[0.5, 0.18, 0.05], [0.5, 0.82, 0.05]] },
+
+  { name: 'the winding river', ripples: 8, hint: '',
+    orbs: [[0.1, 0.1]], goals: [[0.9, 0.9]],
+    flows: [[0, 0.15, 1, 0.16, 120, 0], [0, 0.45, 1, 0.16, -120, 0], [0, 0.75, 1, 0.16, 120, 0]] },
+
+  { name: 'colour cyclone', ripples: 9, hint: '',
+    orbs: [[0.14, 0.3, 'gold'], [0.14, 0.7, 'rose']],
+    goals: [[0.86, 0.3, 'rose'], [0.86, 0.7, 'gold']],
+    whirls: [[0.5, 0.5, 0.16, 1]],
+    flows: [[0, 0, 1, 0.18, 100, 0]] },
+
+  { name: 'the deep maze', ripples: 9, hint: '',
+    orbs: [[0.1, 0.5]], goals: [[0.9, 0.5]],
+    rocks: [[0.26, 0.3, 0.06], [0.26, 0.7, 0.06], [0.42, 0.5, 0.06],
+            [0.58, 0.3, 0.06], [0.58, 0.7, 0.06], [0.74, 0.5, 0.06],
+            [0.42, 0.16, 0.045], [0.42, 0.84, 0.045]] },
+
+  { name: 'opposing gyres', ripples: 9, hint: '',
+    orbs: [[0.12, 0.3, 'gold'], [0.12, 0.7, 'rose']],
+    goals: [[0.88, 0.7, 'gold'], [0.88, 0.3, 'rose']],
+    whirls: [[0.4, 0.32, 0.12, 1], [0.6, 0.68, 0.12, -1]],
+    rocks: [[0.5, 0.5, 0.05]] },
+
+  { name: 'the rapids return', ripples: 9, hint: '',
+    orbs: [[0.88, 0.86]], goals: [[0.12, 0.12]],
+    flows: [[0, 0.18, 1, 0.16, 150, 0], [0, 0.44, 1, 0.16, 160, 0], [0, 0.7, 1, 0.16, 150, 0]],
+    rocks: [[0.5, 0.31, 0.045], [0.5, 0.57, 0.045]] },
+
+  { name: 'storm of colours', ripples: 11, hint: '',
+    orbs: [[0.5, 0.14, 'gold'], [0.86, 0.5, 'rose'], [0.5, 0.86, 'violet'], [0.14, 0.5, 'teal']],
+    goals: [[0.86, 0.86, 'gold'], [0.14, 0.14, 'rose'], [0.14, 0.86, 'violet'], [0.86, 0.14, 'teal']],
+    whirls: [[0.5, 0.5, 0.14, 1]],
+    rocks: [[0.3, 0.3, 0.05], [0.7, 0.7, 0.05]],
+    flows: [[0, 0.5, 1, 0.08, 100, 0]] },
+
+  { name: 'the still point', ripples: 12,
+    hint: 'one pond, one breath, bring every light to rest',
+    orbs: [[0.5, 0.1, 'gold'], [0.1, 0.5, 'rose'], [0.9, 0.5, 'violet'], [0.5, 0.9, 'teal']],
+    goals: [[0.58, 0.58, 'gold'], [0.42, 0.58, 'rose'], [0.58, 0.42, 'violet'], [0.42, 0.42, 'teal']],
+    whirls: [[0.5, 0.5, 0.1, -1]],
+    rocks: [[0.25, 0.25, 0.05], [0.75, 0.25, 0.05], [0.25, 0.75, 0.05], [0.75, 0.75, 0.05]],
+    flows: [[0, 0.05, 1, 0.1, 90, 0], [0, 0.85, 1, 0.1, -90, 0]] }
 ];
 
 /* ---------- game state ---------- */
