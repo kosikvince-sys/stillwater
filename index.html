@@ -1,0 +1,1872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Stillwater</title>
+<meta name="theme-color" content="#04161b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Stillwater">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: rgba(225, 244, 242, 0.92);
+    --ink-dim: rgba(225, 244, 242, 0.45);
+    --line: rgba(190, 232, 226, 0.30);
+    --gold: rgba(255, 214, 160, 0.9);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    background: #04161b;
+    color: var(--ink);
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: none;
+  }
+  canvas {
+    position: fixed;
+    inset: 0;
+    display: block;
+    cursor: crosshair;
+    touch-action: none;
+  }
+  /* soft vignette over the whole scene */
+  #vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center,
+      transparent 55%, rgba(2, 10, 13, 0.55) 100%);
+  }
+
+  #hud {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 26px 38px;
+    padding-top: max(26px, env(safe-area-inset-top));
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1.2s ease;
+  }
+  #hud.visible { opacity: 1; }
+  #brand {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.45em;
+    color: var(--ink-dim);
+  }
+  #levelname {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 17px;
+    font-style: italic;
+    font-weight: 300;
+    letter-spacing: 0.18em;
+    color: var(--ink-dim);
+    transition: opacity 0.8s ease;
+    white-space: nowrap;
+  }
+  #hudright {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  #dots { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; max-width: 40vw; justify-content: flex-end; }
+  .dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: rgba(190, 232, 226, 0.75);
+    box-shadow: 0 0 8px rgba(160, 230, 220, 0.45);
+    transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .dot.spent {
+    background: transparent;
+    box-shadow: none;
+    transform: scale(0.72);
+    border-color: rgba(190, 232, 226, 0.16);
+  }
+  .hudbtn {
+    pointer-events: auto;
+    background: none;
+    border: none;
+    color: var(--ink-dim);
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 0.35em;
+    cursor: pointer;
+    padding: 4px 6px;
+    transition: color 0.4s ease, opacity 0.4s ease;
+  }
+  .hudbtn:hover { color: var(--ink); }
+  #mute { font-size: 17px; letter-spacing: 0; }
+  #mute.off { opacity: 0.35; text-decoration: line-through; }
+  #count {
+    font-size: 18px;
+    font-style: italic;
+    color: var(--ink-dim);
+    min-width: 1.1em;
+    text-align: right;
+    transition: color 0.4s ease;
+  }
+
+  #hint {
+    position: fixed;
+    bottom: 42px;
+    bottom: max(42px, env(safe-area-inset-bottom));
+    left: 0; right: 0;
+    text-align: center;
+    font-style: italic;
+    font-weight: 300;
+    font-size: 18px;
+    letter-spacing: 0.12em;
+    color: var(--ink-dim);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1.4s ease;
+    padding: 0 20px;
+  }
+  #hint.visible { opacity: 1; }
+
+  #overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: rgba(3, 13, 16, 0.42);
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.9s ease;
+    text-align: center;
+    padding: 24px;
+    overflow-y: auto;
+    touch-action: pan-y;
+  }
+  #overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  #overlay h1 {
+    margin: 0;
+    font-size: clamp(40px, 8vw, 84px);
+    font-weight: 300;
+    letter-spacing: 0.42em;
+    padding-left: 0.42em; /* recenter the tracked text */
+    color: var(--ink);
+    text-shadow: 0 0 34px rgba(140, 220, 210, 0.35);
+  }
+  #overlay h2 {
+    margin: 0;
+    font-size: clamp(24px, 4vw, 40px);
+    font-weight: 300;
+    letter-spacing: 0.3em;
+    padding-left: 0.3em;
+  }
+  #overlay p {
+    margin: 6px 0 22px;
+    max-width: 520px;
+    font-style: italic;
+    font-weight: 300;
+    font-size: 18px;
+    line-height: 1.7;
+    letter-spacing: 0.08em;
+    color: var(--ink-dim);
+  }
+  .btnrow {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .btn {
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 400;
+    letter-spacing: 0.42em;
+    padding: 13px 40px 13px 46px;
+    cursor: pointer;
+    transition: all 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .btn:hover {
+    border-color: rgba(210, 245, 240, 0.7);
+    background: rgba(190, 232, 226, 0.07);
+    box-shadow: 0 0 28px rgba(140, 220, 210, 0.12);
+    letter-spacing: 0.5em;
+  }
+  .btn.quiet {
+    border-color: rgba(190, 232, 226, 0.14);
+    color: var(--ink-dim);
+  }
+
+  #grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 11px;
+    justify-content: center;
+    max-width: 400px;
+    margin: 8px 0 26px;
+  }
+  .cell {
+    width: 58px; height: 58px;
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 19px;
+    font-weight: 400;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .cell:hover {
+    border-color: rgba(210, 245, 240, 0.7);
+    background: rgba(190, 232, 226, 0.07);
+    box-shadow: 0 0 20px rgba(140, 220, 210, 0.12);
+  }
+  .cell.done {
+    border-color: rgba(255, 214, 160, 0.45);
+    color: var(--gold);
+  }
+  .cell.done::after {
+    content: '';
+    position: absolute;
+    left: 50%; bottom: 7px;
+    width: 4px; height: 4px;
+    margin-left: -2px;
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 6px rgba(255, 214, 160, 0.7);
+  }
+  .cell.lock {
+    opacity: 0.22;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  .rise {
+    opacity: 0;
+    transform: translateY(14px);
+    animation: rise 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  .rise.d1 { animation-delay: 0.25s; }
+  .rise.d2 { animation-delay: 0.55s; }
+  .rise.d3 { animation-delay: 0.95s; }
+  @keyframes rise {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* phones */
+  @media (max-width: 640px) {
+    #hud { padding: 16px 18px; padding-top: max(16px, env(safe-area-inset-top)); }
+    #brand { display: none; }
+    #levelname { position: static; transform: none; font-size: 15px; }
+    #dots { gap: 6px; max-width: 34vw; }
+    .dot { width: 7px; height: 7px; }
+    .hudbtn { font-size: 11px; letter-spacing: 0.22em; padding: 4px 3px; }
+    #count { font-size: 15px; }
+    #hint { font-size: 15px; bottom: 26px; bottom: max(26px, env(safe-area-inset-bottom)); }
+    #overlay p { font-size: 16px; }
+    .btn { padding: 12px 28px 12px 34px; font-size: 13px; }
+    #grid { max-width: 330px; gap: 9px; }
+    .cell { width: 50px; height: 50px; font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="pond"></canvas>
+<div id="vignette"></div>
+
+<div id="hud">
+  <div id="brand">STILLWATER</div>
+  <div id="levelname"></div>
+  <div id="hudright">
+    <span id="count"></span>
+    <div id="dots"></div>
+    <button id="restartbtn" class="hudbtn" title="restart this level">RESTART</button>
+    <button id="menubtn" class="hudbtn">LEVELS</button>
+    <button id="mute" class="hudbtn" title="sound">&#9834;</button>
+  </div>
+</div>
+
+<div id="hint"></div>
+<div id="overlay"></div>
+
+<script>
+'use strict';
+(() => {
+
+/* ---------- canvas setup ---------- */
+
+const canvas = document.getElementById('pond');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0, DPR = 1, S = 1;
+
+function resize() {
+  const ow = W, oh = H;
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  S = Math.min(W, H) / 800;
+  canvas.width = W * DPR;
+  canvas.height = H * DPR;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (ow && oh) rescaleEntities(ow, oh);
+  buildBackdrop();
+}
+
+/* ---------- tuning ---------- */
+
+const RIPPLE_SPEED = 235;     // px per second at S = 1
+const SIGMA = 30;             // wavefront thickness
+const PUSH = 2600;            // impulse scale
+const CHARGE_TIME = 1.1;      // seconds of holding to reach full power
+const POWER_MIN = 0.28;       // a quick tap, barely a touch
+const POWER_MAX = 1.85;       // a full hold
+const WHIRL_STR = 648;        // whirlpool force scale
+
+// wisp and lantern colours, a level may tag both to force specific pairings
+const TINTS = {
+  teal:   [160, 235, 222],
+  gold:   [255, 214, 160],
+  rose:   [255, 172, 192],
+  violet: [186, 172, 255]
+};
+
+/* ---------- level definitions, coordinates are fractions of the screen ----------
+   orbs and goals use [x, y]
+   rocks and whirls use [x, y, radius], whirl radius is large and adds spin direction
+   flows use [x, y, w, h, fx, fy] where fx fy is the current force
+--------------------------------------------------------------------------------- */
+
+const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X',
+               'XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX',
+               'XXI','XXII','XXIII','XXIV','XXV','XXVI','XXVII','XXVIII','XXIX','XXX',
+               'XXXI','XXXII','XXXIII','XXXIV','XXXV','XXXVI','XXXVII','XXXVIII','XXXIX','XL'];
+
+const LEVELS = [
+  { name: 'first stir', ripples: 3,
+    hint: 'tap behind a wisp for a soft nudge, hold to gather a stronger ripple',
+    orbs: [[0.32, 0.5]], goals: [[0.7, 0.5]] },
+
+  { name: 'two lanterns', ripples: 5,
+    hint: 'one ripple can move many things',
+    orbs: [[0.28, 0.36], [0.28, 0.64]], goals: [[0.73, 0.3], [0.73, 0.7]] },
+
+  { name: 'the stone', ripples: 4,
+    hint: 'water bends around what it cannot move',
+    orbs: [[0.24, 0.5]], goals: [[0.78, 0.5]], rocks: [[0.5, 0.5, 0.085]] },
+
+  { name: 'drift', ripples: 6,
+    hint: 'two fingers make two waves at once, or shift-click to stage waves then press space',
+    orbs: [[0.5, 0.22], [0.3, 0.7], [0.7, 0.7]],
+    goals: [[0.5, 0.78], [0.76, 0.28], [0.24, 0.28]] },
+
+  { name: 'the narrows', ripples: 5,
+    hint: 'a gentle touch from far away moves things only a little',
+    orbs: [[0.16, 0.5]], goals: [[0.85, 0.5]],
+    rocks: [[0.45, 0.26, 0.1], [0.45, 0.74, 0.1], [0.66, 0.38, 0.07], [0.66, 0.62, 0.07]] },
+
+  { name: 'opposing shores', ripples: 5, hint: '',
+    orbs: [[0.2, 0.24], [0.8, 0.76]], goals: [[0.78, 0.26], [0.22, 0.74]],
+    rocks: [[0.5, 0.5, 0.09]] },
+
+  { name: 'the eddy', ripples: 5,
+    hint: 'where the water turns, it carries whatever drifts in',
+    orbs: [[0.18, 0.5]], goals: [[0.82, 0.5]],
+    whirls: [[0.5, 0.5, 0.14, 1]] },
+
+  { name: 'undertow', ripples: 6, hint: '',
+    orbs: [[0.25, 0.3]], goals: [[0.78, 0.72]],
+    whirls: [[0.6, 0.55, 0.13, -1]], rocks: [[0.38, 0.7, 0.06]] },
+
+  { name: 'the stream', ripples: 5,
+    hint: 'the pale current flows one way, step in and ride it',
+    orbs: [[0.18, 0.3]], goals: [[0.5, 0.84]],
+    flows: [[0.42, 0, 0.16, 1, 0, 130]] },
+
+  { name: 'against the current', ripples: 7, hint: '',
+    orbs: [[0.3, 0.5]], goals: [[0.82, 0.5]],
+    flows: [[0, 0.38, 1, 0.24, -110, 0]] },
+
+  { name: 'twin eddies', ripples: 5,
+    hint: 'a wisp will only settle in a lantern of its own colour',
+    orbs: [[0.13, 0.3, 'gold'], [0.13, 0.7, 'rose']],
+    goals: [[0.87, 0.7, 'gold'], [0.87, 0.3, 'rose']],
+    whirls: [[0.36, 0.5, 0.12, 1], [0.64, 0.5, 0.12, -1]] },
+
+  { name: 'the mill', ripples: 6, hint: '',
+    orbs: [[0.14, 0.5, 'gold'], [0.86, 0.5, 'violet']],
+    goals: [[0.84, 0.16, 'gold'], [0.16, 0.84, 'violet']],
+    whirls: [[0.5, 0.5, 0.15, 1]],
+    rocks: [[0.5, 0.2, 0.055], [0.5, 0.8, 0.055]] },
+
+  { name: 'crossing currents', ripples: 6, hint: '',
+    orbs: [[0.14, 0.37], [0.86, 0.67]], goals: [[0.86, 0.37], [0.14, 0.67]],
+    flows: [[0, 0.3, 1, 0.15, 120, 0], [0, 0.6, 1, 0.15, -120, 0]] },
+
+  { name: 'the spiral garden', ripples: 8, hint: '',
+    orbs: [[0.16, 0.5], [0.3, 0.22], [0.3, 0.78]],
+    goals: [[0.5, 0.16], [0.84, 0.5], [0.5, 0.84]],
+    whirls: [[0.52, 0.5, 0.18, 1]] },
+
+  { name: 'headwind', ripples: 7, hint: '',
+    orbs: [[0.18, 0.5]], goals: [[0.85, 0.82]],
+    flows: [[0.5, 0, 0.5, 1, 0, -100]],
+    rocks: [[0.55, 0.32, 0.07], [0.55, 0.62, 0.07]] },
+
+  { name: 'confluence', ripples: 8, hint: '',
+    orbs: [[0.1, 0.5], [0.9, 0.5]], goals: [[0.5, 0.14], [0.5, 0.86]],
+    flows: [[0, 0.42, 0.36, 0.16, 130, 0], [0.64, 0.42, 0.36, 0.16, -130, 0]],
+    whirls: [[0.5, 0.5, 0.11, 1]] },
+
+  { name: 'the quiet maze', ripples: 6, hint: '',
+    orbs: [[0.11, 0.5]], goals: [[0.89, 0.5]],
+    rocks: [[0.3, 0.3, 0.07], [0.3, 0.7, 0.07], [0.5, 0.5, 0.07],
+            [0.7, 0.3, 0.07], [0.7, 0.7, 0.07]] },
+
+  { name: 'maelstrom', ripples: 9, hint: '',
+    orbs: [[0.5, 0.16, 'gold'], [0.16, 0.5, 'rose'], [0.84, 0.5, 'violet'], [0.5, 0.84, 'teal']],
+    goals: [[0.87, 0.14, 'gold'], [0.13, 0.14, 'rose'], [0.87, 0.86, 'violet'], [0.13, 0.86, 'teal']],
+    whirls: [[0.5, 0.5, 0.24, -1]] },
+
+  { name: 'every wind at once', ripples: 9, hint: '',
+    orbs: [[0.12, 0.09], [0.5, 0.55], [0.88, 0.09]],
+    goals: [[0.14, 0.85], [0.5, 0.88], [0.86, 0.85]],
+    flows: [[0, 0, 1, 0.18, 110, 0]],
+    whirls: [[0.3, 0.58, 0.11, 1], [0.7, 0.58, 0.11, -1]],
+    rocks: [[0.5, 0.32, 0.05]] },
+
+  { name: 'stillness', ripples: 10,
+    hint: 'guide every wisp home, then the pond may rest',
+    orbs: [[0.5, 0.1], [0.1, 0.5], [0.9, 0.5], [0.5, 0.9]],
+    goals: [[0.36, 0.36], [0.64, 0.36], [0.36, 0.64], [0.64, 0.64]],
+    rocks: [[0.24, 0.24, 0.055], [0.76, 0.24, 0.055], [0.24, 0.76, 0.055], [0.76, 0.76, 0.055]],
+    whirls: [[0.5, 0.5, 0.09, 1]] },
+
+  { name: 'the long way', ripples: 5, hint: '',
+    orbs: [[0.15, 0.5]], goals: [[0.85, 0.5]],
+    rocks: [[0.5, 0.5, 0.085], [0.5, 0.3, 0.075], [0.5, 0.7, 0.075]] },
+
+  { name: 'lantern row', ripples: 7, hint: '',
+    orbs: [[0.2, 0.3], [0.2, 0.5], [0.2, 0.7]],
+    goals: [[0.8, 0.3], [0.8, 0.5], [0.8, 0.7]] },
+
+  { name: 'sorting pools', ripples: 5, hint: '',
+    orbs: [[0.44, 0.5, 'gold'], [0.56, 0.5, 'rose']],
+    goals: [[0.12, 0.5, 'gold'], [0.88, 0.5, 'rose']] },
+
+  { name: 'the weir', ripples: 5, hint: '',
+    orbs: [[0.12, 0.2]], goals: [[0.88, 0.78]],
+    flows: [[0, 0.42, 1, 0.16, 115, 0]],
+    rocks: [[0.3, 0.5, 0.05], [0.55, 0.5, 0.05], [0.78, 0.5, 0.05]] },
+
+  { name: 'switchback', ripples: 6, hint: '',
+    orbs: [[0.12, 0.85]], goals: [[0.88, 0.1]],
+    flows: [[0, 0.22, 1, 0.14, 110, 0], [0, 0.58, 1, 0.14, -110, 0]] },
+
+  { name: 'the bellows', ripples: 6, hint: '',
+    orbs: [[0.1, 0.5]], goals: [[0.62, 0.13]],
+    flows: [[0, 0.42, 0.5, 0.16, 120, 0]],
+    whirls: [[0.62, 0.5, 0.13, 1]] },
+
+  { name: 'three colours', ripples: 7, hint: '',
+    orbs: [[0.2, 0.25, 'gold'], [0.2, 0.5, 'rose'], [0.2, 0.75, 'violet']],
+    goals: [[0.8, 0.5, 'gold'], [0.8, 0.75, 'rose'], [0.8, 0.25, 'violet']],
+    rocks: [[0.5, 0.5, 0.07]] },
+
+  { name: 'undercurrent', ripples: 6, hint: '',
+    orbs: [[0.15, 0.8], [0.5, 0.8]], goals: [[0.3, 0.2], [0.75, 0.2]],
+    flows: [[0, 0.55, 1, 0.45, 90, 0]] },
+
+  { name: 'the gyre', ripples: 6, hint: '',
+    orbs: [[0.12, 0.7]], goals: [[0.88, 0.3]],
+    whirls: [[0.38, 0.42, 0.13, 1], [0.62, 0.58, 0.13, 1]] },
+
+  { name: 'narrow passage', ripples: 7, hint: '',
+    orbs: [[0.12, 0.5]], goals: [[0.88, 0.5]],
+    rocks: [[0.35, 0.2, 0.08], [0.35, 0.8, 0.08], [0.65, 0.35, 0.08], [0.65, 0.65, 0.08]],
+    flows: [[0.44, 0, 0.12, 1, 0, -100]] },
+
+  { name: 'four corners', ripples: 8, hint: '',
+    orbs: [[0.12, 0.12], [0.88, 0.12], [0.12, 0.88], [0.88, 0.88]],
+    goals: [[0.42, 0.42], [0.58, 0.42], [0.42, 0.58], [0.58, 0.58]],
+    rocks: [[0.5, 0.18, 0.05], [0.18, 0.5, 0.05], [0.82, 0.5, 0.05], [0.5, 0.82, 0.05]] },
+
+  { name: 'the loom', ripples: 7, hint: '',
+    orbs: [[0.12, 0.3, 'gold'], [0.12, 0.7, 'rose']],
+    goals: [[0.88, 0.7, 'gold'], [0.88, 0.3, 'rose']],
+    flows: [[0.3, 0, 0.12, 1, 0, 110], [0.58, 0, 0.12, 1, 0, -110]] },
+
+  { name: 'eye of the storm', ripples: 3,
+    hint: 'sometimes the water does the work, let it take them',
+    orbs: [[0.15, 0.5]], goals: [[0.65, 0.5]],
+    whirls: [[0.65, 0.5, 0.18, -1]] },
+
+  { name: 'twin streams', ripples: 5, hint: '',
+    orbs: [[0.27, 0.12, 'gold'], [0.73, 0.88, 'rose']],
+    goals: [[0.73, 0.12, 'rose'], [0.27, 0.88, 'gold']],
+    flows: [[0.2, 0, 0.14, 1, 0, 120], [0.66, 0, 0.14, 1, 0, -120]],
+    rocks: [[0.47, 0.5, 0.06]] },
+
+  { name: 'the cauldron', ripples: 8, hint: '',
+    orbs: [[0.12, 0.12], [0.88, 0.88]], goals: [[0.88, 0.12], [0.12, 0.88]],
+    whirls: [[0.5, 0.5, 0.2, 1]],
+    rocks: [[0.5, 0.16, 0.06], [0.16, 0.5, 0.06], [0.84, 0.5, 0.06], [0.5, 0.84, 0.06]] },
+
+  { name: 'ferry crossing', ripples: 7, hint: '',
+    orbs: [[0.2, 0.12, 'gold'], [0.8, 0.88, 'rose']],
+    goals: [[0.2, 0.88, 'gold'], [0.8, 0.12, 'rose']],
+    flows: [[0, 0.42, 1, 0.16, 130, 0]] },
+
+  { name: 'the deep maze', ripples: 8, hint: '',
+    orbs: [[0.12, 0.5]], goals: [[0.9, 0.5]],
+    rocks: [[0.28, 0.28, 0.07], [0.28, 0.72, 0.07], [0.5, 0.5, 0.07],
+            [0.72, 0.28, 0.07], [0.72, 0.72, 0.07], [0.5, 0.14, 0.05], [0.5, 0.86, 0.05]],
+    whirls: [[0.85, 0.5, 0.1, 1]] },
+
+  { name: 'rapids', ripples: 8, hint: '',
+    orbs: [[0.85, 0.88]], goals: [[0.15, 0.1]],
+    flows: [[0, 0.2, 1, 0.14, 140, 0], [0, 0.43, 1, 0.14, 150, 0], [0, 0.66, 1, 0.14, 160, 0]] },
+
+  { name: 'the four winds', ripples: 9, hint: '',
+    orbs: [[0.5, 0.28, 'gold'], [0.72, 0.5, 'rose'], [0.5, 0.72, 'violet'], [0.28, 0.5, 'teal']],
+    goals: [[0.5, 0.08, 'violet'], [0.92, 0.5, 'teal'], [0.5, 0.92, 'gold'], [0.08, 0.5, 'rose']],
+    flows: [[0, 0, 0.5, 0.16, 120, 0], [0.84, 0, 0.16, 0.5, 0, 120],
+            [0.5, 0.84, 0.5, 0.16, -120, 0], [0, 0.5, 0.16, 0.5, 0, -120]] },
+
+  { name: 'the last light', ripples: 10,
+    hint: 'the pond remembers every ripple, make these count',
+    orbs: [[0.5, 0.14, 'gold'], [0.14, 0.5, 'rose'], [0.86, 0.5, 'violet'], [0.5, 0.86, 'teal']],
+    goals: [[0.14, 0.14, 'violet'], [0.86, 0.14, 'teal'], [0.14, 0.86, 'gold'], [0.86, 0.86, 'rose']],
+    rocks: [[0.24, 0.24, 0.05], [0.76, 0.24, 0.05], [0.24, 0.76, 0.05], [0.76, 0.76, 0.05]],
+    whirls: [[0.5, 0.5, 0.11, -1]],
+    flows: [[0, 0.08, 1, 0.12, 100, 0], [0, 0.8, 1, 0.12, -100, 0]] }
+];
+
+/* ---------- game state ---------- */
+
+let state = 'title';        // title, menu, playing, settled, complete, failed, end
+let levelIndex = 0;
+let ripplesLeft = 0;
+let orbs = [], goals = [], rocks = [], whirls = [], flows = [];
+let ripples = [], sparks = [], specks = [], flowSpecks = [];
+let stillTimer = 0;
+let settleDelay = 0;
+let usedFirstRipple = false;
+let time = 0;
+
+const hud = document.getElementById('hud');
+const dotsEl = document.getElementById('dots');
+const levelnameEl = document.getElementById('levelname');
+const hintEl = document.getElementById('hint');
+const overlay = document.getElementById('overlay');
+const muteBtn = document.getElementById('mute');
+const menuBtn = document.getElementById('menubtn');
+const restartBtn = document.getElementById('restartbtn');
+const countEl = document.getElementById('count');
+
+/* ---------- saved progress ---------- */
+
+let unlocked = 0;
+let done = LEVELS.map(() => false);
+try {
+  const raw = JSON.parse(localStorage.getItem('stillwater') || '{}');
+  if (typeof raw.u === 'number') unlocked = Math.min(raw.u, LEVELS.length - 1);
+  if (Array.isArray(raw.d)) raw.d.forEach((v, i) => { if (i < done.length) done[i] = !!v; });
+} catch (e) { /* a fresh pond */ }
+
+function saveProgress() {
+  try { localStorage.setItem('stillwater', JSON.stringify({ u: unlocked, d: done })); }
+  catch (e) { /* private browsing, nothing to do */ }
+}
+
+/* ---------- audio, tiny generative chimes ---------- */
+
+let actx = null, muted = false;
+let master = null, verb = null, noiseBuf = null, ambStarted = false;
+
+function makeNoiseBuffer(a) {
+  const len = a.sampleRate * 2;
+  const buf = a.createBuffer(1, len, a.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  return buf;
+}
+
+// a decaying burst of darkened noise makes the cave echo
+// the lowpass is essential, raw noise tails crackle like fireworks
+function makeImpulse(a, seconds, decay) {
+  const len = Math.floor(a.sampleRate * seconds);
+  const buf = a.createBuffer(2, len, a.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    let lp = 0;
+    for (let i = 0; i < len; i++) {
+      lp += 0.04 * ((Math.random() * 2 - 1) - lp);
+      d[i] = lp * 8 * Math.pow(1 - i / len, decay);
+    }
+  }
+  return buf;
+}
+
+function audio() {
+  if (!actx) {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    master = actx.createGain();
+    master.gain.value = muted ? 0 : 1;
+    master.connect(actx.destination);
+    noiseBuf = makeNoiseBuffer(actx);
+    verb = actx.createConvolver();
+    verb.buffer = makeImpulse(actx, 2.6, 2.9);
+    const vg = actx.createGain();
+    vg.gain.value = 0.55;
+    verb.connect(vg);
+    vg.connect(master);
+  }
+  if (actx.state === 'suspended') actx.resume();
+  if (!ambStarted) {
+    ambStarted = true;
+    startAmbience();
+    scheduleDrip();
+  }
+  return actx;
+}
+
+// the body of the lake, deep filtered noise that breathes very slowly
+function startAmbience() {
+  const a = actx;
+  const src = a.createBufferSource();
+  src.buffer = noiseBuf;
+  src.loop = true;
+  const lp = a.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 150;
+  lp.Q.value = 0.7;
+  const g = a.createGain();
+  g.gain.setValueAtTime(0.0001, a.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.024, a.currentTime + 4);
+  src.connect(lp);
+  lp.connect(g);
+  g.connect(master);
+  const lfo = a.createOscillator();
+  lfo.frequency.value = 0.06;
+  const lg = a.createGain();
+  lg.gain.value = 55;
+  lfo.connect(lg);
+  lg.connect(lp.frequency);
+  src.start();
+  lfo.start();
+}
+
+function sendWet(node, amount) {
+  const w = actx.createGain();
+  w.gain.value = amount;
+  node.connect(w);
+  w.connect(verb);
+}
+
+// a drop falls from the cave ceiling somewhere in the dark
+// just the tiny air bubble whose pitch rises as it collapses, no impact noise
+function drip(f0, vol, canBounce) {
+  if (muted || !actx) return;
+  const a = actx, t = a.currentTime;
+  f0 = f0 || 260 + Math.random() * 340;
+  vol = vol === undefined ? 0.03 + Math.random() * 0.03 : vol;
+
+  // the bubble glides up briefly as it collapses, a short ploop not a long whistle
+  // a wide slow sweep reads as a firework, so keep the rise small and fast
+  const rise = 1.28 + Math.random() * 0.34;
+  const dur = 0.022 + Math.random() * 0.024;
+  const o = a.createOscillator();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(f0, t);
+  o.frequency.exponentialRampToValueAtTime(f0 * rise, t + dur);
+  const g = a.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.003);   // near instant tap, the impact
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g);
+  g.connect(master);
+  sendWet(g, 0.65);
+  o.start(t);
+  o.stop(t + dur + 0.05);
+
+  // sometimes the drop skips once before the water takes it
+  if (canBounce !== false && Math.random() < 0.3) {
+    setTimeout(() => drip(f0 * (1.2 + Math.random() * 0.25), vol * 0.45, false),
+      85 + Math.random() * 70);
+  }
+}
+
+function scheduleDrip() {
+  setTimeout(() => { drip(); scheduleDrip(); }, 1500 + Math.random() * 5500);
+}
+
+// a struck bowl of water, soft inharmonic partials with a long fade
+function bell(freq, vol, dur) {
+  if (muted) return;
+  const a = audio(), t = a.currentTime;
+  for (const [m, v] of [[1, 1], [2.01, 0.38], [2.94, 0.18], [4.16, 0.08]]) {
+    const o = a.createOscillator();
+    o.type = 'sine';
+    o.frequency.value = freq * m;
+    const g = a.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol * v, t + 0.012 + 0.006 * m);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur / Math.sqrt(m));
+    o.connect(g);
+    g.connect(master);
+    sendWet(g, 0.85);
+    o.start(t);
+    o.stop(t + dur + 0.1);
+  }
+}
+
+function tone(freq, dur, vol, type, slide, wet) {
+  if (muted) return;
+  const a = audio();
+  const o = a.createOscillator();
+  const g = a.createGain();
+  o.type = type || 'sine';
+  o.frequency.setValueAtTime(freq, a.currentTime);
+  if (slide) o.frequency.exponentialRampToValueAtTime(slide, a.currentTime + dur);
+  g.gain.setValueAtTime(0.0001, a.currentTime);
+  g.gain.exponentialRampToValueAtTime(vol, a.currentTime + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+  o.connect(g);
+  g.connect(master);
+  const w = a.createGain();
+  w.gain.value = wet === undefined ? 0.45 : wet;
+  g.connect(w);
+  w.connect(verb);
+  o.start();
+  o.stop(a.currentTime + dur + 0.05);
+}
+
+// a soft wash of filtered noise, the sound of water moving
+function wash(vol, dur, f0, f1) {
+  if (muted) return;
+  const a = audio();
+  const src = a.createBufferSource();
+  src.buffer = noiseBuf;
+  src.loop = true;
+  const lp = a.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.Q.value = 0.8;
+  lp.frequency.setValueAtTime(f0, a.currentTime);
+  lp.frequency.exponentialRampToValueAtTime(f1, a.currentTime + dur);
+  const g = a.createGain();
+  g.gain.setValueAtTime(0.0001, a.currentTime);
+  g.gain.exponentialRampToValueAtTime(vol, a.currentTime + 0.07);
+  g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+  src.connect(lp);
+  lp.connect(g);
+  g.connect(master);
+  const w = a.createGain();
+  w.gain.value = 0.5;
+  g.connect(w);
+  w.connect(verb);
+  src.start(a.currentTime, Math.random() * 1.5);
+  src.stop(a.currentTime + dur + 0.1);
+}
+
+const sndDrop = (power) => {
+  wash(0.05 + 0.06 * power, 0.55 + 0.6 * power, 600 + 500 * power, 150);
+  tone(200 - 70 * (power - 0.5), 0.45 + 0.3 * power, 0.025 + 0.03 * power, 'sine', 85, 0.5);
+};
+const sndCapture = () => { bell(660, 0.035, 1.6); setTimeout(() => bell(990, 0.025, 1.8), 120); };
+const sndFail = () => { wash(0.05, 2.2, 320, 90); tone(180, 1.6, 0.03, 'sine', 120, 0.7); };
+const sndWin = () => {
+  if (muted) return;
+  const a = audio(), t = a.currentTime;
+  // the water exhales, and a faint chord pulses like light under the surface
+  // the two close voices drift in and out of phase, which makes the slow throb
+  wash(0.06, 3, 550, 110);
+  for (const [f, v] of [[196, 0.065], [199.4, 0.065], [294, 0.034], [392, 0.02]]) {
+    const o = a.createOscillator();
+    o.type = 'sine';
+    o.frequency.value = f;
+    const g = a.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(v, t + 1.2);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 4.6);
+    o.connect(g);
+    g.connect(master);
+    sendWet(g, 0.9);
+    o.start(t);
+    o.stop(t + 4.8);
+  }
+};
+
+// low hum that swells while a ripple is being gathered
+let humOsc = null, humGain = null;
+function humStart() {
+  if (muted) return;
+  const a = audio();
+  humOsc = a.createOscillator();
+  humGain = a.createGain();
+  humOsc.type = 'sine';
+  humOsc.frequency.setValueAtTime(85, a.currentTime);
+  humOsc.frequency.linearRampToValueAtTime(210, a.currentTime + CHARGE_TIME);
+  humGain.gain.setValueAtTime(0.0001, a.currentTime);
+  humGain.gain.exponentialRampToValueAtTime(0.02, a.currentTime + 0.3);
+  humOsc.connect(humGain);
+  humGain.connect(master);
+  humOsc.start();
+}
+function humStop() {
+  if (!humOsc) return;
+  const a = audio();
+  humGain.gain.cancelScheduledValues(a.currentTime);
+  humGain.gain.setValueAtTime(humGain.gain.value || 0.0001, a.currentTime);
+  humGain.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + 0.12);
+  humOsc.stop(a.currentTime + 0.15);
+  humOsc = null; humGain = null;
+}
+
+muteBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  muted = !muted;
+  muteBtn.classList.toggle('off', muted);
+  if (actx) {
+    const a = audio();
+    master.gain.cancelScheduledValues(a.currentTime);
+    master.gain.setValueAtTime(master.gain.value, a.currentTime);
+    master.gain.linearRampToValueAtTime(muted ? 0 : 1, a.currentTime + 0.25);
+  }
+});
+
+/* ---------- backdrop, painted once per resize ---------- */
+
+let backdrop = null;
+function buildBackdrop() {
+  backdrop = document.createElement('canvas');
+  backdrop.width = W; backdrop.height = H;
+  const b = backdrop.getContext('2d');
+  const g = b.createLinearGradient(0, 0, W * 0.3, H);
+  g.addColorStop(0, '#06222a');
+  g.addColorStop(0.55, '#04161c');
+  g.addColorStop(1, '#031014');
+  b.fillStyle = g;
+  b.fillRect(0, 0, W, H);
+}
+
+function initSpecks() {
+  specks = [];
+  for (let i = 0; i < 70; i++) {
+    specks.push({
+      x: Math.random() * W, y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6,
+      r: (0.6 + Math.random() * 1.4) * S,
+      ph: Math.random() * Math.PI * 2,
+      sp: 0.4 + Math.random() * 0.8
+    });
+  }
+}
+
+/* ---------- level loading ---------- */
+
+function buildStatics(L) {
+  goals = (L.goals || []).map(([fx, fy, col], i) => {
+    const old = goals[i];
+    return {
+      x: fx * W, y: fy * H, r: 30 * S,
+      filled: old ? old.filled : false,
+      glow: old ? old.glow : 0,
+      color: col, rgb: TINTS[col] || [150, 230, 212],
+      ph: old ? old.ph : Math.random() * Math.PI * 2
+    };
+  });
+  rocks = (L.rocks || []).map(([fx, fy, fr]) => ({
+    x: fx * W, y: fy * H, r: fr * Math.min(W, H)
+  }));
+  whirls = (L.whirls || []).map(([fx, fy, fr, dir]) => ({
+    x: fx * W, y: fy * H, r: fr * Math.min(W, H), dir,
+    orbiters: Array.from({ length: 6 }, () => ({
+      a: Math.random() * Math.PI * 2,
+      rf: 0.25 + Math.random() * 0.65,
+      sp: 0.6 + Math.random() * 0.9
+    }))
+  }));
+  flows = (L.flows || []).map(([fx, fy, fw, fh, ax, ay]) => ({
+    x: fx * W, y: fy * H, w: fw * W, h: fh * H, ax: ax * 1.2, ay: ay * 1.2
+  }));
+  flowSpecks = [];
+  for (const fl of flows) {
+    const mag = Math.hypot(fl.ax, fl.ay) || 1;
+    const ux = fl.ax / mag, uy = fl.ay / mag;
+    const n = Math.max(14, Math.min(60, Math.round((fl.w * fl.h) / (80 * 80 * S * S))));
+    for (let i = 0; i < n; i++) {
+      flowSpecks.push({
+        fl, ux, uy,
+        x: fl.x + Math.random() * fl.w,
+        y: fl.y + Math.random() * fl.h,
+        sp: (30 + Math.random() * 60) * S,
+        len: (8 + Math.random() * 14) * S,
+        sway: (2 + Math.random() * 6) * S,
+        ph: Math.random() * Math.PI * 2
+      });
+    }
+  }
+}
+
+function loadLevel(i) {
+  const L = LEVELS[i];
+  levelIndex = i;
+  ripplesLeft = L.ripples;
+  ripples = [];
+  sparks = [];
+  goals = [];
+  stillTimer = 0;
+  settleDelay = 0;
+  usedFirstRipple = false;
+  releaseAllCharges();
+
+  orbs = L.orbs.map(([fx, fy, col]) => ({
+    x: fx * W, y: fy * H, vx: 0, vy: 0,
+    r: 9 * S, ph: Math.random() * Math.PI * 2,
+    captured: false, settle: 0, goal: null,
+    color: col, rgb: TINTS[col] || TINTS.teal,
+    trail: []
+  }));
+  buildStatics(L);
+
+  levelnameEl.textContent = ROMAN[i] + ' · ' + L.name;
+  buildDots();
+  showHint(L.hint);
+  hideOverlay();
+  hud.classList.add('visible');
+  state = 'playing';
+}
+
+function rescaleEntities(ow, oh) {
+  const sx = W / ow, sy = H / oh;
+  for (const o of orbs) { o.x *= sx; o.y *= sy; o.trail = []; o.r = 9 * S; }
+  if (LEVELS[levelIndex]) buildStatics(LEVELS[levelIndex]);
+  // settled wisps stay pinned to their lantern
+  for (const o of orbs) {
+    if (o.captured && o.settle >= 1 && o.goal) {
+      const gi = goals.find(g => g.filled && Math.hypot(g.x - o.x, g.y - o.y) < 200 * S);
+      if (gi) { o.x = gi.x; o.y = gi.y; o.goal = gi; }
+    }
+  }
+}
+
+function buildDots() {
+  dotsEl.innerHTML = '';
+  for (let i = 0; i < LEVELS[levelIndex].ripples; i++) {
+    const d = document.createElement('span');
+    d.className = 'dot' + (i < LEVELS[levelIndex].ripples - ripplesLeft ? ' spent' : '');
+    dotsEl.appendChild(d);
+  }
+  countEl.textContent = ripplesLeft;
+}
+
+function spendDot() {
+  const fresh = dotsEl.querySelectorAll('.dot:not(.spent)');
+  if (fresh.length) fresh[fresh.length - 1].classList.add('spent');
+  countEl.textContent = ripplesLeft;
+}
+
+function showHint(text) {
+  if (!text) { hintEl.classList.remove('visible'); return; }
+  hintEl.textContent = text;
+  hintEl.classList.add('visible');
+}
+
+/* ---------- overlays ---------- */
+
+function showOverlay(html) {
+  overlay.innerHTML = html;
+  overlay.classList.add('visible');
+}
+function hideOverlay() {
+  overlay.classList.remove('visible');
+}
+
+function titleScreen() {
+  state = 'title';
+  hud.classList.remove('visible');
+  hintEl.classList.remove('visible');
+  const begin = unlocked > 0 ? 'CONTINUE' : 'BEGIN';
+  showOverlay(`
+    <h1 class="rise">STILLWATER</h1>
+    <p class="rise d1">night has settled on the pond, and stray wisps of light<br>
+    long for their lanterns. you cannot touch them.<br>
+    you can only touch the water.</p>
+    <div class="btnrow rise d2">
+      <button class="btn" data-act="start">${begin}</button>
+      <button class="btn quiet" data-act="menu">LEVELS</button>
+    </div>
+  `);
+}
+
+function menuScreen() {
+  state = 'menu';
+  hud.classList.remove('visible');
+  hintEl.classList.remove('visible');
+  releaseAllCharges();
+  let cells = '';
+  for (let i = 0; i < LEVELS.length; i++) {
+    const cls = done[i] ? ' done' : (i > unlocked ? ' lock' : '');
+    cells += `<button class="cell${cls}" data-level="${i}" title="${LEVELS[i].name}">${i + 1}</button>`;
+  }
+  showOverlay(`
+    <h2 class="rise">the lanterns</h2>
+    <div id="grid" class="rise d1">${cells}</div>
+    <button class="btn quiet rise d2" data-act="title">BACK</button>
+  `);
+}
+
+function completeScreen() {
+  sndWin();
+  done[levelIndex] = true;
+  unlocked = Math.max(unlocked, Math.min(levelIndex + 1, LEVELS.length - 1));
+  saveProgress();
+  const last = levelIndex === LEVELS.length - 1;
+  if (last) {
+    state = 'end';
+    showOverlay(`
+      <h2 class="rise">the pond is still</h2>
+      <p class="rise d1">every wisp is home. the water holds the moon<br>without a single tremor.</p>
+      <div class="btnrow rise d2">
+        <button class="btn" data-act="restart">ONCE MORE</button>
+        <button class="btn quiet" data-act="menu">LEVELS</button>
+      </div>
+    `);
+  } else {
+    state = 'complete';
+    showOverlay(`
+      <h2 class="rise">${ROMAN[levelIndex]} · ${LEVELS[levelIndex].name}</h2>
+      <p class="rise d1">the wisps are home</p>
+      <div class="btnrow rise d2">
+        <button class="btn" data-act="next">CONTINUE</button>
+        <button class="btn quiet" data-act="menu">LEVELS</button>
+      </div>
+    `);
+  }
+}
+
+function failScreen() {
+  state = 'failed';
+  sndFail();
+  showOverlay(`
+    <h2 class="rise">the water stills</h2>
+    <p class="rise d1">your ripples have faded, and some wisps remain adrift</p>
+    <div class="btnrow rise d2">
+      <button class="btn" data-act="retry">TRY AGAIN</button>
+      <button class="btn quiet" data-act="menu">LEVELS</button>
+    </div>
+  `);
+}
+
+overlay.addEventListener('click', (e) => {
+  const t = e.target;
+  if (t.dataset && t.dataset.level !== undefined) {
+    audio();
+    loadLevel(parseInt(t.dataset.level, 10));
+    return;
+  }
+  const act = t.dataset && t.dataset.act;
+  if (!act) return;
+  audio();
+  if (act === 'start') loadLevel(Math.min(unlocked, LEVELS.length - 1));
+  else if (act === 'restart') loadLevel(0);
+  else if (act === 'next') loadLevel(levelIndex + 1);
+  else if (act === 'retry') loadLevel(levelIndex);
+  else if (act === 'menu') menuScreen();
+  else if (act === 'title') titleScreen();
+});
+
+menuBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  menuScreen();
+});
+
+restartBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (state === 'playing' || state === 'failed') loadLevel(levelIndex);
+});
+
+/* ---------- input, hold to gather, several ripples may be gathered at once ----------
+   every finger gets its own charge, so two thumbs make two waves together
+   with a trackpad, hold shift and click to stage a pending wave (repeat for more),
+   then press space to let every staged wave go at the same instant
+-------------------------------------------------------------------------------------- */
+
+let charges = [];
+let shiftHeld = false;
+
+function chargeAmount(c) {
+  // a staged wave holds the strength it had when it was planted
+  if (c.planted && c.amt !== undefined) return c.amt;
+  return Math.min((time - c.t0) / CHARGE_TIME, 1);
+}
+
+// stage the held charge in place, it waits, pending, until the next release-all
+function plantCharge(c) {
+  c.amt = chargeAmount(c);
+  c.planted = true;
+  c.id = null;
+}
+
+// let go of every pending wave in the same instant
+function releasePending() {
+  if (state !== 'playing' || !charges.length) return;
+  const all = charges.slice();
+  charges = [];
+  for (const c of all) fireCharge(c);
+  humStop();
+  if (!usedFirstRipple) {
+    usedFirstRipple = true;
+    setTimeout(() => hintEl.classList.remove('visible'), 1200);
+  }
+}
+
+function fireCharge(c) {
+  const power = POWER_MIN + (POWER_MAX - POWER_MIN) * chargeAmount(c);
+  ripplesLeft--;
+  spendDot();
+  ripples.push({ x: c.x, y: c.y, r: 0, born: time, power });
+  splash(c.x, c.y, power);
+  sndDrop(power);
+}
+
+function releaseAllCharges() {
+  charges = [];
+  humStop();
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  if (state !== 'playing') return;
+  audio();
+  if (charges.length >= ripplesLeft) return;
+  charges.push({ id: e.pointerId, x: e.clientX, y: e.clientY, t0: time, planted: false });
+  if (charges.length === 1) humStart();
+});
+
+window.addEventListener('pointermove', (e) => {
+  for (const c of charges) {
+    if (c.id === e.pointerId && !c.planted) { c.x = e.clientX; c.y = e.clientY; }
+  }
+});
+
+window.addEventListener('pointerup', (e) => {
+  if (!charges.length) return;
+  if (state !== 'playing') { releaseAllCharges(); return; }
+  const i = charges.findIndex(c => c.id === e.pointerId);
+  if (i < 0) return;                 // a pending wave, it waits for the release-all
+  const c = charges[i];
+  // with shift down, releasing stages the wave instead of firing it
+  if (shiftHeld) { plantCharge(c); return; }
+  charges.splice(i, 1);
+  fireCharge(c);
+  if (charges.length === 0) humStop();
+  if (!usedFirstRipple) {
+    usedFirstRipple = true;
+    setTimeout(() => hintEl.classList.remove('visible'), 1200);
+  }
+});
+
+window.addEventListener('pointercancel', (e) => {
+  charges = charges.filter(c => c.id === null || c.id !== e.pointerId);
+  if (charges.length === 0) humStop();
+});
+
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Shift') {
+    shiftHeld = true;
+    // plant any charge already being held, it waits, pending, for the release-all
+    for (const c of charges) {
+      if (!c.planted) plantCharge(c);
+    }
+  }
+  if (e.key === ' ' || e.code === 'Space') {
+    // release every staged wave at the same instant
+    e.preventDefault();
+    releasePending();
+  }
+  if (e.key === 'r' || e.key === 'R') {
+    if (state === 'playing' || state === 'failed') loadLevel(levelIndex);
+  }
+  if (e.key === 'Escape') {
+    if (state === 'playing' || state === 'failed' || state === 'complete') menuScreen();
+  }
+});
+
+window.addEventListener('keyup', (e) => {
+  if (e.key === 'Shift') shiftHeld = false;
+});
+
+/* ---------- particles ---------- */
+
+function splash(x, y, power) {
+  const n = Math.round(6 + 8 * power);
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = (30 + Math.random() * 80) * S * (0.5 + 0.6 * power);
+    sparks.push({
+      x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+      life: 0, max: 0.5 + Math.random() * 0.4,
+      r: (1 + Math.random() * 1.6) * S, warm: false
+    });
+  }
+}
+
+function bloom(x, y, rgb) {
+  for (let i = 0; i < 26; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = (20 + Math.random() * 110) * S;
+    sparks.push({
+      x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+      life: 0, max: 0.8 + Math.random() * 0.9,
+      r: (1 + Math.random() * 2) * S, warm: true,
+      rgb: rgb || [255, 216, 165]
+    });
+  }
+}
+
+/* ---------- physics ---------- */
+
+function rippleAmp(r) {
+  return Math.exp(-r / (Math.min(W, H) * 0.55));
+}
+
+// strength of a stream at a point, easing to nothing over a feathered margin
+function flowFactor(fl, x, y) {
+  const fe = 46 * S;
+  const ex = Math.min(x - fl.x, fl.x + fl.w - x);
+  const ey = Math.min(y - fl.y, fl.y + fl.h - y);
+  if (ex <= 0 || ey <= 0) return 0;
+  const t = Math.min(1, Math.min(ex, ey) / fe);
+  return t * t * (3 - 2 * t);
+}
+
+function update(dt) {
+  time += dt;
+
+  // ambient specks drift forever, even on the title screen
+  for (const p of specks) {
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    if (p.x < -10) p.x = W + 10; if (p.x > W + 10) p.x = -10;
+    if (p.y < -10) p.y = H + 10; if (p.y > H + 10) p.y = -10;
+  }
+
+  // flow streaks ride their current and wrap inside the zone
+  for (const p of flowSpecks) {
+    p.x += p.ux * p.sp * dt;
+    p.y += p.uy * p.sp * dt;
+    const fl = p.fl;
+    if (p.x < fl.x) p.x += fl.w; if (p.x > fl.x + fl.w) p.x -= fl.w;
+    if (p.y < fl.y) p.y += fl.h; if (p.y > fl.y + fl.h) p.y -= fl.h;
+  }
+
+  // whirlpool orbiters
+  for (const wp of whirls) {
+    for (const ob of wp.orbiters) {
+      ob.a += wp.dir * ob.sp * (1.7 - ob.rf) * dt;
+    }
+  }
+
+  // sparks
+  for (let i = sparks.length - 1; i >= 0; i--) {
+    const p = sparks[i];
+    p.life += dt;
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vx *= Math.pow(0.1, dt); p.vy *= Math.pow(0.1, dt);
+    if (p.life >= p.max) sparks.splice(i, 1);
+  }
+
+  // ripples expand and fade
+  const maxR = Math.hypot(W, H);
+  for (let i = ripples.length - 1; i >= 0; i--) {
+    const rp = ripples[i];
+    rp.r += RIPPLE_SPEED * S * dt;
+
+    // the wave rides the water it travels through, it is never neutral, a current
+    // carries the whole ring downstream and a whirlpool drags it around as it turns
+    for (const fl of flows) {
+      const k = flowFactor(fl, rp.x, rp.y);
+      if (k > 0) { rp.x += fl.ax * S * k * 0.66 * dt; rp.y += fl.ay * S * k * 0.66 * dt; }
+    }
+    for (const wp of whirls) {
+      const dx = rp.x - wp.x, dy = rp.y - wp.y;
+      const d = Math.hypot(dx, dy);
+      if (d < wp.r && d > 1) {
+        const fall = 1 - d / wp.r;
+        const nx = dx / d, ny = dy / d;
+        const sp = 108 * S * fall;                    // tangential drag on the ring
+        const pull = 28.8 * S * fall;                 // a little inward with the spin
+        rp.x += (-ny * wp.dir * sp - nx * pull) * dt;
+        rp.y += ( nx * wp.dir * sp - ny * pull) * dt;
+      }
+    }
+
+    if (rp.r > maxR) ripples.splice(i, 1);
+  }
+
+  if (state !== 'playing' && state !== 'settled') return;
+
+  const sigma = SIGMA * S;
+
+  for (const o of orbs) {
+    if (o.captured) {
+      // ease into the lantern
+      if (o.settle < 1) {
+        o.settle = Math.min(1, o.settle + dt / 0.8);
+        const t = 1 - Math.pow(1 - o.settle, 3);
+        o.x = o.sx + (o.goal.x - o.sx) * t;
+        o.y = o.sy + (o.goal.y - o.sy) * t;
+        if (o.settle >= 1) o.goal.glow = 1;
+      }
+      continue;
+    }
+
+    // wavefront push from every live ripple
+    for (const rp of ripples) {
+      const dx = o.x - rp.x, dy = o.y - rp.y;
+      const d = Math.max(Math.hypot(dx, dy), 1);
+      const u = (d - rp.r) / sigma;
+      const infl = Math.exp(-u * u);
+      if (infl <= 0.002) continue;
+      const dirx = dx / d, diry = dy / d;     // radial, straight out from the strike
+      const tx = -diry, ty = dirx;            // tangent, along the wavefront
+
+      // a stone in the path casts a shadow, and the front bends around its edges
+      let radial = 1, bend = 0;
+      for (const rk of rocks) {
+        const rcx = rk.x - rp.x, rcy = rk.y - rp.y;
+        const along = rcx * dirx + rcy * diry;       // stone's distance along the ray
+        if (along <= 0 || along >= d) continue;       // stone must sit between strike and wisp
+        const perp = rcx * tx + rcy * ty;             // signed offset from the ray
+        const reach = rk.r + 22 * S;                  // stone plus a soft penumbra
+        if (Math.abs(perp) > reach) continue;         // ray clears the stone
+        const sh = 1 - Math.abs(perp) / reach;        // 1 on axis, 0 at the penumbra edge
+        radial *= 1 - 0.8 * sh;                       // less push straight through
+        // steer the wisp around the open edge, keeping the way it already leans
+        let side = o.vx * tx + o.vy * ty;
+        if (Math.abs(side) < 1e-3) side = -perp;      // else away from the stone centre
+        bend += Math.sign(side || 1) * sh;
+      }
+
+      const f = PUSH * S * rp.power * rippleAmp(rp.r) * infl * dt;
+      o.vx += (dirx * radial + tx * bend * 0.7) * f;
+      o.vy += (diry * radial + ty * bend * 0.7) * f;
+    }
+
+    // whirlpools, a turning force with a slight inward pull
+    for (const wp of whirls) {
+      const dx = o.x - wp.x, dy = o.y - wp.y;
+      const d = Math.hypot(dx, dy);
+      if (d < wp.r && d > 1) {
+        const fall = 1 - d / wp.r;
+        const f = WHIRL_STR * S * fall * dt;
+        const nx = dx / d, ny = dy / d;
+        o.vx += -ny * wp.dir * f - nx * f * 0.42;
+        o.vy += nx * wp.dir * f - ny * f * 0.42;
+      }
+    }
+
+    // currents, easing in at the banks rather than grabbing at a hard line
+    for (const fl of flows) {
+      const k = flowFactor(fl, o.x, o.y);
+      if (k > 0) {
+        o.vx += fl.ax * S * k * dt;
+        o.vy += fl.ay * S * k * dt;
+      }
+    }
+
+    // water drag
+    const drag = Math.pow(0.22, dt);
+    o.vx *= drag; o.vy *= drag;
+    o.x += o.vx * dt; o.y += o.vy * dt;
+
+    // shores
+    const m = 14 * S + o.r;
+    if (o.x < m) { o.x = m; o.vx = Math.abs(o.vx) * 0.65; }
+    if (o.x > W - m) { o.x = W - m; o.vx = -Math.abs(o.vx) * 0.65; }
+    if (o.y < m) { o.y = m; o.vy = Math.abs(o.vy) * 0.65; }
+    if (o.y > H - m) { o.y = H - m; o.vy = -Math.abs(o.vy) * 0.65; }
+
+    // stones
+    for (const rk of rocks) {
+      const dx = o.x - rk.x, dy = o.y - rk.y;
+      const d = Math.hypot(dx, dy), min = rk.r + o.r;
+      if (d < min && d > 0.001) {
+        const nx = dx / d, ny = dy / d;
+        o.x = rk.x + nx * min;
+        o.y = rk.y + ny * min;
+        const vn = o.vx * nx + o.vy * ny;
+        if (vn < 0) { o.vx -= 1.65 * vn * nx; o.vy -= 1.65 * vn * ny; }
+      }
+    }
+
+    // trail
+    o.trail.push({ x: o.x, y: o.y });
+    if (o.trail.length > 14) o.trail.shift();
+
+    // lantern capture, a coloured lantern only takes its own wisp
+    for (const g of goals) {
+      if (g.filled || g.color !== o.color) continue;
+      if (Math.hypot(o.x - g.x, o.y - g.y) < g.r * 0.55) {
+        g.filled = true;
+        o.captured = true;
+        o.goal = g;
+        o.sx = o.x; o.sy = o.y;
+        o.vx = o.vy = 0;
+        stillTimer = 0;
+        bloom(g.x, g.y, g.color ? g.rgb : null);
+        sndCapture();
+        break;
+      }
+    }
+  }
+
+  // gentle orb on orb separation
+  for (let i = 0; i < orbs.length; i++) {
+    for (let j = i + 1; j < orbs.length; j++) {
+      const a = orbs[i], b = orbs[j];
+      if (a.captured || b.captured) continue;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const d = Math.hypot(dx, dy), min = a.r + b.r + 2;
+      if (d < min && d > 0.001) {
+        const px = (dx / d) * (min - d) * 0.5;
+        const py = (dy / d) * (min - d) * 0.5;
+        a.x -= px; a.y -= py; b.x += px; b.y += py;
+      }
+    }
+  }
+
+  // win, after the last settle finishes
+  if (state === 'playing' && goals.every(g => g.filled)) {
+    state = 'settled';
+    settleDelay = 0;
+  }
+  if (state === 'settled') {
+    settleDelay += dt;
+    if (settleDelay > 1.5 && orbs.every(o => o.settle >= 1)) completeScreen();
+    return;
+  }
+
+  // fail when the ripples are gone, wisps circling a whirlpool get a longer grace
+  if (ripplesLeft === 0 && ripples.length === 0 && charges.length === 0) {
+    const moving = orbs.some(o => !o.captured && Math.hypot(o.vx, o.vy) > 6);
+    stillTimer += dt;
+    if (stillTimer > (moving ? 8 : 1.4)) failScreen();
+  } else if (ripples.length > 0) {
+    stillTimer = 0;
+  }
+}
+
+/* ---------- rendering ---------- */
+
+// a stone blocks the wavefront, leaving an angular notch in the ring that slowly
+// heals as the wave grows past it, the visible side of the diffraction in the physics
+function ringGaps(rp, rr) {
+  const gaps = [];
+  for (const rk of rocks) {
+    const ddx = rk.x - rp.x, ddy = rk.y - rp.y;
+    const dCR = Math.hypot(ddx, ddy);
+    if (dCR < 1 || rr < dCR - rk.r) continue;       // ring has not reached the stone yet
+    const ang = Math.asin(Math.min(1, rk.r / dCR)) + 0.05;
+    const healDist = 90 * S + dCR * 0.6;
+    const factor = rr <= dCR ? 1 : Math.max(0, 1 - (rr - dCR) / healDist);
+    const half = ang * factor;
+    if (half < 0.03) continue;
+    let b = Math.atan2(ddy, ddx);
+    if (b < 0) b += Math.PI * 2;
+    const s = b - half, e = b + half, TAU = Math.PI * 2;
+    if (s < 0) { gaps.push([0, e]); gaps.push([s + TAU, TAU]); }
+    else if (e > TAU) { gaps.push([s, TAU]); gaps.push([0, e - TAU]); }
+    else gaps.push([s, e]);
+  }
+  return gaps;
+}
+
+// stroke a ring but skip the angular spans where stones shadow it
+function strokeNotchedRing(cx, cy, r, gaps) {
+  const TAU = Math.PI * 2;
+  if (!gaps.length) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, TAU);
+    ctx.stroke();
+    return;
+  }
+  gaps.sort((a, b) => a[0] - b[0]);
+  const merged = [];
+  for (const g of gaps) {
+    const last = merged[merged.length - 1];
+    if (last && g[0] <= last[1] + 1e-3) last[1] = Math.max(last[1], g[1]);
+    else merged.push([g[0], g[1]]);
+  }
+  for (let i = 0; i < merged.length; i++) {
+    const start = merged[i][1];
+    const end = (i + 1 < merged.length) ? merged[i + 1][0] : merged[0][0] + TAU;
+    if (end - start < 1e-3) continue;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, start, end);
+    ctx.stroke();
+  }
+}
+
+function draw() {
+  ctx.drawImage(backdrop, 0, 0, W, H);
+
+  // slow caustic light, additive and very faint
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 3; i++) {
+    const cx = W * (0.5 + 0.38 * Math.sin(time * 0.05 + i * 2.1));
+    const cy = H * (0.5 + 0.38 * Math.cos(time * 0.04 + i * 1.7));
+    const cr = Math.min(W, H) * 0.45;
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, cr);
+    g.addColorStop(0, 'rgba(40, 110, 110, 0.05)');
+    g.addColorStop(1, 'rgba(40, 110, 110, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - cr, cy - cr, cr * 2, cr * 2);
+  }
+  ctx.globalCompositeOperation = 'source-over';
+
+  // currents, a soft edged wash with streaks drifting and swaying along the flow
+  for (const fl of flows) {
+    const horiz = Math.abs(fl.ax) >= Math.abs(fl.ay);
+    const grad = horiz
+      ? ctx.createLinearGradient(0, fl.y, 0, fl.y + fl.h)
+      : ctx.createLinearGradient(fl.x, 0, fl.x + fl.w, 0);
+    grad.addColorStop(0, 'rgba(150, 225, 220, 0)');
+    grad.addColorStop(0.3, 'rgba(150, 225, 220, 0.11)');
+    grad.addColorStop(0.7, 'rgba(150, 225, 220, 0.11)');
+    grad.addColorStop(1, 'rgba(150, 225, 220, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(fl.x, fl.y, fl.w, fl.h);
+
+    // banks, a soft line down each edge so the channel reads as a defined current
+    ctx.strokeStyle = 'rgba(150, 225, 220, 0.22)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (horiz) {
+      ctx.moveTo(fl.x, fl.y);            ctx.lineTo(fl.x + fl.w, fl.y);
+      ctx.moveTo(fl.x, fl.y + fl.h);     ctx.lineTo(fl.x + fl.w, fl.y + fl.h);
+    } else {
+      ctx.moveTo(fl.x, fl.y);            ctx.lineTo(fl.x, fl.y + fl.h);
+      ctx.moveTo(fl.x + fl.w, fl.y);     ctx.lineTo(fl.x + fl.w, fl.y + fl.h);
+    }
+    ctx.stroke();
+  }
+  for (const p of flowSpecks) {
+    const k = flowFactor(p.fl, p.x, p.y);
+    if (k <= 0.02) continue;
+    const tw = (0.18 + 0.12 * Math.sin(time * 1.3 + p.ph)) * k;
+    // gentle side to side sway, like weeds in a current
+    const sw = Math.sin(time * 0.9 + p.ph * 3) * p.sway;
+    const hx = p.x - p.uy * sw, hy = p.y + p.ux * sw;
+    const tx = hx - p.ux * p.len, ty = hy - p.uy * p.len;
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = `rgba(190, 240, 233, ${tw})`;
+    ctx.beginPath();
+    ctx.moveTo(hx, hy);
+    ctx.lineTo(tx, ty);
+    ctx.stroke();
+    // a brighter head so the direction reads at a glance
+    ctx.fillStyle = `rgba(210, 248, 242, ${tw * 1.6})`;
+    ctx.beginPath();
+    ctx.arc(hx, hy, 1.1 * S, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // ambient specks
+  for (const p of specks) {
+    const tw = 0.25 + 0.2 * Math.sin(time * p.sp + p.ph);
+    ctx.fillStyle = `rgba(170, 220, 215, ${tw})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // whirlpools, darker turning water with spiral arcs
+  for (const wp of whirls) {
+    const dg = ctx.createRadialGradient(wp.x, wp.y, 0, wp.x, wp.y, wp.r);
+    dg.addColorStop(0, 'rgba(0, 4, 6, 0.78)');
+    dg.addColorStop(0.55, 'rgba(2, 10, 13, 0.4)');
+    dg.addColorStop(1, 'rgba(2, 8, 11, 0)');
+    ctx.fillStyle = dg;
+    ctx.beginPath();
+    ctx.arc(wp.x, wp.y, wp.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // a bright defining rim so the pull zone reads at a glance
+    ctx.strokeStyle = 'rgba(120, 215, 235, 0.4)';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(wp.x, wp.y, wp.r * 0.92, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // turning arcs, brighter near the core so the spin direction is obvious
+    for (let k = 0; k < 4; k++) {
+      const rr = wp.r * (0.22 + k * 0.2);
+      const a0 = time * wp.dir * (1.1 - k * 0.16) + k * 2.2;
+      ctx.strokeStyle = `rgba(140, 225, 235, ${0.34 - k * 0.06})`;
+      ctx.lineWidth = 1.6 - k * 0.2;
+      ctx.beginPath();
+      ctx.arc(wp.x, wp.y, rr, a0, a0 + 2.3);
+      ctx.stroke();
+    }
+
+    // motes caught in the turning
+    for (const ob of wp.orbiters) {
+      const rr = wp.r * ob.rf;
+      const x = wp.x + Math.cos(ob.a) * rr;
+      const y = wp.y + Math.sin(ob.a) * rr;
+      ctx.fillStyle = 'rgba(180, 235, 235, 0.45)';
+      ctx.beginPath();
+      ctx.arc(x, y, 1.5 * S, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // stones
+  for (const rk of rocks) {
+    const g = ctx.createRadialGradient(
+      rk.x - rk.r * 0.35, rk.y - rk.r * 0.45, rk.r * 0.1,
+      rk.x, rk.y, rk.r);
+    g.addColorStop(0, '#1d4e58');
+    g.addColorStop(0.6, '#0d2f38');
+    g.addColorStop(1, '#06181d');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(rk.x, rk.y, rk.r, 0, Math.PI * 2);
+    ctx.fill();
+    // a lit edge so the stone stands out as a solid obstacle
+    ctx.strokeStyle = 'rgba(150, 220, 225, 0.32)';
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    // a small specular glint on the upper left
+    ctx.fillStyle = 'rgba(200, 240, 240, 0.18)';
+    ctx.beginPath();
+    ctx.arc(rk.x - rk.r * 0.32, rk.y - rk.r * 0.36, rk.r * 0.22, 0, Math.PI * 2);
+    ctx.fill();
+    // waterline ring around each stone
+    ctx.strokeStyle = 'rgba(180, 230, 225, 0.12)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(rk.x, rk.y, rk.r + 6 * S + Math.sin(time * 1.3 + rk.x) * 1.5 * S, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // lanterns
+  for (const g of goals) {
+    const pulse = g.filled ? 0 : 0.5 + 0.5 * Math.sin(time * 2 + g.ph);
+    // a coloured lantern keeps its colour, a plain one turns gold when filled
+    const fr = g.color ? g.rgb : [255, 214, 160];
+    const ur = g.rgb;
+    // coloured lanterns read brighter so a wisp can be matched to its own at a glance
+    const cb = g.color ? 0.2 : 0;
+    const base = g.filled
+      ? `rgba(${fr[0]}, ${fr[1]}, ${fr[2]}, ${0.55 + 0.3 * g.glow})`
+      : `rgba(${ur[0]}, ${ur[1]}, ${ur[2]}, ${0.3 + cb + 0.25 * pulse})`;
+
+    // soft pool of light inside
+    const ig = ctx.createRadialGradient(g.x, g.y, 0, g.x, g.y, g.r);
+    const inner = g.filled
+      ? `rgba(${fr[0]}, ${fr[1]}, ${fr[2]}, 0.10)`
+      : `rgba(${ur[0]}, ${ur[1]}, ${ur[2]}, ${0.05 + 0.1 * (g.color ? 1 : 0)})`;
+    ig.addColorStop(0, inner);
+    ig.addColorStop(1, 'rgba(140, 225, 205, 0)');
+    ctx.fillStyle = ig;
+    ctx.beginPath();
+    ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // main ring, a touch thicker on coloured lanterns
+    ctx.strokeStyle = base;
+    ctx.lineWidth = g.color ? 2.2 : 1.4;
+    ctx.beginPath();
+    ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // a solid colour pip at the heart of a coloured lantern, the key to match a wisp by
+    if (g.color && !g.filled) {
+      const pc = g.rgb;
+      ctx.fillStyle = `rgba(${pc[0]}, ${pc[1]}, ${pc[2]}, ${0.5 + 0.3 * pulse})`;
+      ctx.beginPath();
+      ctx.arc(g.x, g.y, 3 * S, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // slowly turning dashed halo
+    ctx.save();
+    ctx.translate(g.x, g.y);
+    ctx.rotate(time * (g.filled ? 0.1 : 0.35) + g.ph);
+    ctx.setLineDash([3 * S, 11 * S]);
+    ctx.strokeStyle = g.filled
+      ? `rgba(${fr[0]}, ${fr[1]}, ${fr[2]}, 0.35)`
+      : `rgba(${ur[0]}, ${ur[1]}, ${ur[2]}, ${0.12 + 0.18 * pulse})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(0, 0, g.r + 7 * S, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  // ripples, a bright front with two fading echoes behind it
+  for (const rp of ripples) {
+    const amp = rippleAmp(rp.r) * Math.min(rp.power, 1.25);
+    for (let k = 0; k < 3; k++) {
+      const rr = rp.r - k * 16 * S * Math.sqrt(rp.power);
+      if (rr <= 0) continue;
+      const a = Math.min(amp * (0.5 - k * 0.15) * (0.6 + 0.4 * rp.power), 0.85);
+      if (a <= 0.01) continue;
+      ctx.strokeStyle = `rgba(200, 240, 235, ${a})`;
+      ctx.lineWidth = Math.max(0.6, (2.2 - k * 0.7) * S * amp * 2 * rp.power);
+      strokeNotchedRing(rp.x, rp.y, rr, rocks.length ? ringGaps(rp, rr) : []);
+    }
+  }
+
+  // the gathering touches, glow and converging rings while holding
+  if (state === 'playing') {
+    for (const ch of charges) {
+      const c = chargeAmount(ch);
+      const full = c >= 1;
+      const breathe = full ? 1 + 0.06 * Math.sin(time * 6) : 1;
+      const ringR = (10 + 26 * c) * S * breathe;
+
+      const gg = ctx.createRadialGradient(ch.x, ch.y, 0, ch.x, ch.y, ringR * 2.4);
+      gg.addColorStop(0, `rgba(200, 245, 240, ${0.10 + 0.22 * c})`);
+      gg.addColorStop(1, 'rgba(200, 245, 240, 0)');
+      ctx.fillStyle = gg;
+      ctx.beginPath();
+      ctx.arc(ch.x, ch.y, ringR * 2.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = `rgba(210, 248, 242, ${0.30 + 0.5 * c})`;
+      ctx.lineWidth = 1 + 1.6 * c;
+      ctx.beginPath();
+      ctx.arc(ch.x, ch.y, ringR, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // a planted charge waits with a steady mote at its heart
+      if (ch.planted) {
+        ctx.fillStyle = 'rgba(230, 250, 246, 0.8)';
+        ctx.beginPath();
+        ctx.arc(ch.x, ch.y, 2.4 * S, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // a faint ring drawn inward, the water being gathered
+      const ph = (time * 1.4) % 1;
+      const inR = ringR + (1 - ph) * 34 * S * (0.3 + 0.7 * c);
+      ctx.strokeStyle = `rgba(210, 248, 242, ${(0.05 + 0.3 * c) * ph})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(ch.x, ch.y, inR, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // sparks
+  ctx.globalCompositeOperation = 'lighter';
+  for (const p of sparks) {
+    const a = Math.max(0, 1 - p.life / p.max);
+    ctx.fillStyle = p.warm
+      ? `rgba(${p.rgb[0]}, ${p.rgb[1]}, ${p.rgb[2]}, ${0.7 * a})`
+      : `rgba(190, 240, 235, ${0.55 * a})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * a, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // wisps
+  for (const o of orbs) {
+    // trail
+    const tr = o.rgb;
+    for (let i = 0; i < o.trail.length; i++) {
+      const t = i / o.trail.length;
+      ctx.fillStyle = `rgba(${tr[0]}, ${tr[1]}, ${tr[2]}, ${t * 0.10})`;
+      ctx.beginPath();
+      ctx.arc(o.trail[i].x, o.trail[i].y, o.r * 0.5 * t, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const bob = o.captured ? 0 : Math.sin(time * 1.6 + o.ph) * 2 * S;
+    const x = o.x, y = o.y + bob;
+    const warm = o.captured && o.settle > 0.6;
+    // settled wisps glow with their lantern's colour, plain ones turn gold
+    const wr = warm ? (o.color ? o.rgb : [255, 220, 170]) : o.rgb;
+    const glowR = o.r * (4 + 0.6 * Math.sin(time * 2.2 + o.ph));
+    const hg = ctx.createRadialGradient(x, y, 0, x, y, glowR);
+    // tinted wisps glow more in their own colour so they pair with their lantern
+    hg.addColorStop(0, `rgba(${wr[0]}, ${wr[1]}, ${wr[2]}, ${warm ? 0.55 : (o.color ? 0.55 : 0.4)})`);
+    hg.addColorStop(1, 'rgba(170, 240, 230, 0)');
+    ctx.fillStyle = hg;
+    ctx.beginPath();
+    ctx.arc(x, y, glowR, 0, Math.PI * 2);
+    ctx.fill();
+
+    const cg = ctx.createRadialGradient(x, y, 0, x, y, o.r);
+    // a smaller white hot core on tinted wisps lets the colour dominate
+    cg.addColorStop(0, 'rgba(255, 255, 252, 0.95)');
+    if (o.color) cg.addColorStop(0.45, `rgba(${wr[0]}, ${wr[1]}, ${wr[2]}, 0.92)`);
+    cg.addColorStop(1, `rgba(${wr[0]}, ${wr[1]}, ${wr[2]}, 0.55)`);
+    ctx.fillStyle = cg;
+    ctx.beginPath();
+    ctx.arc(x, y, o.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+/* ---------- main loop ---------- */
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, 1 / 30);
+  last = now;
+  update(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+
+window.addEventListener('resize', resize);
+resize();
+initSpecks();
+titleScreen();
+requestAnimationFrame(frame);
+
+// offline support when served over https or localhost, file urls skip this
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+})();
+</script>
+</body>
+</html>
