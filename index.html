@@ -693,7 +693,53 @@ const LEVELS = [
   { name: 'the great current', ripples: 6,
     hint: 'one wide current pulls everything along, steer across it',
     orbs: [[0.06, 0.2]], goals: [[0.92, 0.8]],
-    flows: [[0, 0, 1, 1, 140, 0]] }
+    flows: [[0, 0, 1, 1, 140, 0]] },
+
+  { name: 'the stone labyrinth', ripples: 10,
+    hint: 'a wall of stones, find the one path the water can take',
+    orbs: [[0.07, 0.5]], goals: [[0.93, 0.5]],
+    rocks: [[0.25, 0.12, 0.055], [0.25, 0.3, 0.055], [0.25, 0.48, 0.055],
+            [0.42, 0.52, 0.055], [0.42, 0.7, 0.055], [0.42, 0.88, 0.055],
+            [0.58, 0.12, 0.055], [0.58, 0.3, 0.055], [0.58, 0.48, 0.055],
+            [0.75, 0.52, 0.055], [0.75, 0.7, 0.055], [0.75, 0.88, 0.055]] },
+
+  { name: 'the whirling maze', ripples: 11,
+    hint: 'a field of little eddies, each one turns against its neighbour',
+    orbs: [[0.07, 0.5]], goals: [[0.93, 0.5]],
+    whirls: [[0.25, 0.25, 0.1, 1], [0.25, 0.5, 0.1, -1], [0.25, 0.75, 0.1, 1],
+             [0.5, 0.25, 0.1, -1], [0.5, 0.5, 0.1, 1], [0.5, 0.75, 0.1, -1],
+             [0.75, 0.25, 0.1, 1], [0.75, 0.5, 0.1, -1], [0.75, 0.75, 0.1, 1]] },
+
+  { name: 'eye within eye', ripples: 8,
+    hint: 'a great whirl, and lesser ones turning inside it',
+    orbs: [[0.06, 0.5]], goals: [[0.74, 0.5]],
+    whirls: [[0.5, 0.5, 0.44, 1], [0.38, 0.42, 0.12, -1], [0.62, 0.58, 0.12, -1]] },
+
+  { name: 'the rapids of stone', ripples: 10,
+    hint: 'the whole pond runs, with rocks and eddies in the flood',
+    orbs: [[0.06, 0.15]], goals: [[0.94, 0.85]],
+    flows: [[0, 0, 1, 1, 130, 0]],
+    rocks: [[0.4, 0.4, 0.06], [0.6, 0.65, 0.06], [0.5, 0.2, 0.05]],
+    whirls: [[0.3, 0.7, 0.12, -1], [0.7, 0.35, 0.12, 1]] },
+
+  { name: 'crossroads of colour', ripples: 9, hint: '',
+    orbs: [[0.08, 0.3, 'gold'], [0.08, 0.7, 'rose']],
+    goals: [[0.92, 0.3, 'gold'], [0.92, 0.7, 'rose']],
+    whirls: [[0.5, 0.3, 0.11, 1], [0.5, 0.7, 0.11, -1]] },
+
+  { name: 'the gauntlet of stone', ripples: 10, hint: '',
+    orbs: [[0.06, 0.5]], goals: [[0.94, 0.5]],
+    rocks: [[0.3, 0.28, 0.06], [0.3, 0.72, 0.06], [0.5, 0.2, 0.06],
+            [0.5, 0.8, 0.06], [0.7, 0.28, 0.06], [0.7, 0.72, 0.06]],
+    flows: [[0, 0.42, 1, 0.16, 110, 0]] },
+
+  { name: 'the turning of the year', ripples: 14,
+    hint: 'every water at once, bring the four lights to rest in the centre',
+    orbs: [[0.5, 0.08, 'gold'], [0.08, 0.5, 'rose'], [0.92, 0.5, 'violet'], [0.5, 0.92, 'teal']],
+    goals: [[0.42, 0.42, 'gold'], [0.58, 0.42, 'rose'], [0.42, 0.58, 'violet'], [0.58, 0.58, 'teal']],
+    whirls: [[0.5, 0.5, 0.13, -1], [0.22, 0.22, 0.09, 1], [0.78, 0.78, 0.09, 1]],
+    rocks: [[0.78, 0.22, 0.05], [0.22, 0.78, 0.05]],
+    flows: [[0, 0, 1, 0.1, 90, 0], [0, 0.9, 1, 0.1, -90, 0]] }
 ];
 
 /* ---------- game state ---------- */

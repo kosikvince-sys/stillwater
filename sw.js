@@ -1,7 +1,7 @@
 /* Stillwater service worker, caches everything so the game plays offline */
 'use strict';
 
-const CACHE = 'stillwater-v14';
+const CACHE = 'stillwater-v15';
 const ASSETS = [
   './',
   './index.html',
